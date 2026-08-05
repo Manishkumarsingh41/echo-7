@@ -10,7 +10,7 @@ ECHO-7 is designed as a modular local-first companion. The Phase 1 codebase keep
 - `echo_core/config.py` - environment-driven application settings.
 - `echo_core/logging.py` - logging configuration.
 - `echo_core/conversation.py` - conversation flow and exit handling.
-- `echo_core/ai/` - response provider abstraction and mock implementation.
+- `echo_core/ai/` - response provider abstraction, mock fallback, llama.cpp client, and USB server manager.
 
 ## Planned Modules
 
@@ -26,7 +26,7 @@ The following folders are reserved for future work and are intentionally minimal
 
 ## Extension Model
 
-Future capabilities should plug into the existing interfaces instead of coupling directly to the CLI. For example, a local LLM provider can replace the mock provider by implementing the same response interface, and memory or tool systems can be introduced as separate services behind explicit boundaries.
+Future capabilities should plug into the existing interfaces instead of coupling directly to the CLI. The local llama.cpp provider now uses the same response interface as the mock provider, and memory or tool systems can be introduced as separate services behind explicit boundaries.
 
 ## Safety Notes
 

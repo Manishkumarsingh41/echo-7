@@ -1,6 +1,6 @@
 # ECHO-7
 
-ECHO-7 is a local-first persistent personal AI companion. This repository is starting with Phase 1: a clean Python foundation and a minimal text-only runtime.
+ECHO-7 is a local-first persistent personal AI companion. Phase 1 established the clean Python foundation and text-only runtime. Phase 2A adds an optional local llama.cpp integration while preserving the mock provider for testing and fallback.
 
 ## Phase 1 Scope
 
@@ -13,6 +13,7 @@ Implemented in this phase:
 - A small conversation engine with exit handling
 - A text CLI that starts with `python -m apps.desktop.main`
 - Basic pytest coverage
+- Optional local llama.cpp provider and USB runtime discovery
 
 Not implemented yet:
 
@@ -24,6 +25,8 @@ Not implemented yet:
 - RAG / document ingestion
 - PC automation
 - Large local models
+- Permanent memory
+- Voice, vision, automation, sync, and mobile features
 
 ## Architecture
 
@@ -89,4 +92,4 @@ pytest
 
 ## Future Roadmap
 
-Phase 2 and beyond will gradually add memory, voice, knowledge retrieval, identity features, sync, and safer tool access. Each capability should plug into the existing core instead of replacing it.
+Phase 2A focuses on the local LLM path only. Later phases will gradually add memory, voice, knowledge retrieval, identity features, sync, and safer tool access. Each capability should plug into the existing core instead of replacing it.
