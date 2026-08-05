@@ -20,6 +20,7 @@ from echo_core.ai.base import (
 from echo_core.ai.llama_cpp_provider import LlamaCppProvider
 from echo_core.ai.llama_cpp_server import (
     LlamaHealthState,
+    LlamaCppHealthCheck,
     LlamaCppInstallation,
     LlamaCppServerManager,
     LlamaCppServerSession,
@@ -308,6 +309,111 @@ def test_wait_for_ready_times_out():
 
     assert health.state is LlamaHealthState.UNAVAILABLE
     assert "timed out" in health.body.lower()
+
+
+def test_wait_for_ready_reports_process_exit_during_loading():
+    def opener(request, timeout):
+        raise HTTPError(
+            request.full_url,
+            503,
+            "Service Unavailable",
+            hdrs=None,
+            fp=io.BytesIO(b"Loading model"),
+        )
+
+    state = {"value": 0.0}
+
+    def clock() -> float:
+        return state["value"]
+
+    def sleep(seconds: float) -> None:
+        state["value"] += seconds
+
+    process = FakeProcess()
+    process.returncode = 7
+
+    manager = LlamaCppServerManager(AppConfig(), opener=opener, clock=clock, sleep=sleep)
+
+    health = manager.wait_for_ready(10.0, process=process)
+
+    assert health.state is LlamaHealthState.UNAVAILABLE
+    assert health.status_code == 7
+    assert "exited before the model became ready" in health.body
+
+
+def test_bootstrap_retries_with_more_conservative_settings(tmp_path, monkeypatch):
+    installation = _build_installation(tmp_path)
+    config = AppConfig()
+    manager = LlamaCppServerManager(config)
+    launch_calls: list[tuple[int, int, int]] = []
+
+    def discover_installation(self):
+        return installation
+
+    def check_health(self):
+        return LlamaCppHealthCheck(LlamaHealthState.UNAVAILABLE, None, "")
+
+    def is_port_occupied(self):
+        return False
+
+    def launch_server(self, installation_arg):
+        launch_calls.append(
+            (self._config.llama_context_size, self._config.llama_threads, self._config.llama_max_output_tokens)
+        )
+        if self._config.llama_context_size > 1024:
+            return None
+        return FakeProcess()
+
+    def wait_for_ready(self, timeout_seconds, process=None, progress_callback=None):
+        if self._config.llama_context_size <= 1024:
+            return LlamaCppHealthCheck(LlamaHealthState.READY, 200, "ok")
+        return LlamaCppHealthCheck(LlamaHealthState.UNAVAILABLE, None, "startup failed")
+
+    monkeypatch.setattr(LlamaCppServerManager, "discover_installation", discover_installation, raising=False)
+    monkeypatch.setattr(LlamaCppServerManager, "check_health", check_health, raising=False)
+    monkeypatch.setattr(LlamaCppServerManager, "_is_port_occupied", is_port_occupied, raising=False)
+    monkeypatch.setattr(LlamaCppServerManager, "_launch_server", launch_server, raising=False)
+    monkeypatch.setattr(LlamaCppServerManager, "wait_for_ready", wait_for_ready, raising=False)
+
+    result = manager.bootstrap()
+
+    assert result.ready is True
+    assert launch_calls[0][0] == 2048
+    assert launch_calls[-1][0] == 1024
+
+
+def test_bootstrap_reports_failed_recovery(tmp_path, monkeypatch):
+    installation = _build_installation(tmp_path)
+    config = AppConfig()
+    manager = LlamaCppServerManager(config)
+
+    def discover_installation(self):
+        return installation
+
+    def check_health(self):
+        return LlamaCppHealthCheck(LlamaHealthState.UNAVAILABLE, None, "")
+
+    def is_port_occupied(self):
+        return False
+
+    def launch_server(self, installation_arg):
+        if self._config.llama_context_size > 1024:
+            return None
+        return FakeProcess()
+
+    def wait_for_ready(self, timeout_seconds, process=None, progress_callback=None):
+        return LlamaCppHealthCheck(LlamaHealthState.UNAVAILABLE, None, "startup failed")
+
+    monkeypatch.setattr(LlamaCppServerManager, "discover_installation", discover_installation, raising=False)
+    monkeypatch.setattr(LlamaCppServerManager, "check_health", check_health, raising=False)
+    monkeypatch.setattr(LlamaCppServerManager, "_is_port_occupied", is_port_occupied, raising=False)
+    monkeypatch.setattr(LlamaCppServerManager, "_launch_server", launch_server, raising=False)
+    monkeypatch.setattr(LlamaCppServerManager, "wait_for_ready", wait_for_ready, raising=False)
+
+    result = manager.bootstrap()
+
+    assert result.ready is False
+    assert "startup failed" in result.health.body
 
 
 def test_shutdown_only_stops_owned_server(tmp_path):

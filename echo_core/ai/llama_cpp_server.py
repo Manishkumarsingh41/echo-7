@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import replace
 from enum import Enum
 import logging
 import os
@@ -88,6 +89,21 @@ class LlamaCppServerManager:
         return self._chat_completions_url
 
     def bootstrap(self) -> LlamaCppStartupResult:
+        return self._bootstrap_internal(progress_callback=None, allow_recovery=True)
+
+    def bootstrap_with_progress(
+        self,
+        *,
+        progress_callback: Callable[[float], None] | None = None,
+    ) -> LlamaCppStartupResult:
+        return self._bootstrap_internal(progress_callback=progress_callback, allow_recovery=True)
+
+    def _bootstrap_internal(
+        self,
+        *,
+        progress_callback: Callable[[float], None] | None,
+        allow_recovery: bool,
+    ) -> LlamaCppStartupResult:
         installation = self.discover_installation()
         if installation is None:
             return self._build_result(
@@ -111,7 +127,10 @@ class LlamaCppServerManager:
             )
 
         if health.state is LlamaHealthState.LOADING:
-            ready_health = self.wait_for_ready(self._config.llama_startup_timeout_seconds)
+            ready_health = self.wait_for_ready(
+                self._config.llama_startup_timeout_seconds,
+                progress_callback=progress_callback,
+            )
             if ready_health.state is LlamaHealthState.READY:
                 session = self._build_session(installation, process=None, owns_server=False)
                 return self._build_result(
@@ -120,6 +139,19 @@ class LlamaCppServerManager:
                     ready_health,
                     session,
                     diagnostic="compatible llama.cpp server finished loading on port 8080",
+                )
+            if allow_recovery:
+                recovery_manager = LlamaCppServerManager(
+                    self._build_recovery_config(),
+                    drive_roots=self._drive_roots,
+                    opener=self._opener,
+                    popen_factory=self._popen_factory,
+                    clock=self._clock,
+                    sleep=self._sleep,
+                )
+                return recovery_manager._bootstrap_internal(
+                    progress_callback=progress_callback,
+                    allow_recovery=False,
                 )
             return self._build_result(False, installation, ready_health, None, diagnostic=ready_health.body or "startup timed out while waiting for an already-loading server")
 
@@ -138,6 +170,19 @@ class LlamaCppServerManager:
 
         process = self._launch_server(installation)
         if process is None:
+            if allow_recovery:
+                recovery_manager = LlamaCppServerManager(
+                    self._build_recovery_config(),
+                    drive_roots=self._drive_roots,
+                    opener=self._opener,
+                    popen_factory=self._popen_factory,
+                    clock=self._clock,
+                    sleep=self._sleep,
+                )
+                return recovery_manager._bootstrap_internal(
+                    progress_callback=progress_callback,
+                    allow_recovery=False,
+                )
             return self._build_result(
                 False,
                 installation,
@@ -152,6 +197,19 @@ class LlamaCppServerManager:
 
         initial_returncode = process.poll()
         if initial_returncode is not None:
+            if allow_recovery:
+                recovery_manager = LlamaCppServerManager(
+                    self._build_recovery_config(),
+                    drive_roots=self._drive_roots,
+                    opener=self._opener,
+                    popen_factory=self._popen_factory,
+                    clock=self._clock,
+                    sleep=self._sleep,
+                )
+                return recovery_manager._bootstrap_internal(
+                    progress_callback=progress_callback,
+                    allow_recovery=False,
+                )
             return self._build_result(
                 False,
                 installation,
@@ -167,6 +225,7 @@ class LlamaCppServerManager:
         ready_health = self.wait_for_ready(
             self._config.llama_startup_timeout_seconds,
             process=process,
+            progress_callback=progress_callback,
         )
         if ready_health.state is LlamaHealthState.READY:
             session = self._build_session(installation, process=process, owns_server=True)
@@ -180,6 +239,19 @@ class LlamaCppServerManager:
 
         session = self._build_session(installation, process=process, owns_server=True)
         self.shutdown(session)
+        if allow_recovery:
+            recovery_manager = LlamaCppServerManager(
+                self._build_recovery_config(),
+                drive_roots=self._drive_roots,
+                opener=self._opener,
+                popen_factory=self._popen_factory,
+                clock=self._clock,
+                sleep=self._sleep,
+            )
+            return recovery_manager._bootstrap_internal(
+                progress_callback=progress_callback,
+                allow_recovery=False,
+            )
         diagnostic = ready_health.body or "llama-server failed to become ready before timeout"
         return self._build_result(False, installation, ready_health, None, diagnostic=diagnostic)
 
@@ -235,6 +307,7 @@ class LlamaCppServerManager:
         timeout_seconds: float,
         *,
         process: subprocess.Popen[bytes] | None = None,
+        progress_callback: Callable[[float], None] | None = None,
     ) -> LlamaCppHealthCheck:
         deadline = self._clock() + timeout_seconds
         last_health = self.check_health()
@@ -254,6 +327,8 @@ class LlamaCppServerManager:
                 break
 
             self._sleep(min(self._config.llama_poll_interval_seconds, remaining_seconds))
+            if progress_callback is not None:
+                progress_callback(round(timeout_seconds - (deadline - self._clock())))
             last_health = self.check_health()
             if last_health.state is LlamaHealthState.READY:
                 return last_health
@@ -416,6 +491,19 @@ class LlamaCppServerManager:
         except OSError:
             return ""
         return body.decode("utf-8", errors="replace").strip()
+
+    def _build_recovery_config(self) -> AppConfig:
+        conservative_context = max(768, min(self._config.llama_context_size, 1024))
+        conservative_threads = max(2, min(self._config.llama_threads, 2))
+        conservative_output = max(128, min(self._config.llama_max_output_tokens, 192))
+        conservative_timeout = max(self._config.llama_startup_timeout_seconds, 240.0)
+        return replace(
+            self._config,
+            llama_context_size=conservative_context,
+            llama_threads=conservative_threads,
+            llama_max_output_tokens=conservative_output,
+            llama_startup_timeout_seconds=conservative_timeout,
+        )
 
     def _is_port_occupied(self) -> bool:
         try:

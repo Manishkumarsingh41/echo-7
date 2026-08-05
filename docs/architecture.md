@@ -7,6 +7,7 @@ ECHO-7 is designed as a modular local-first companion. The Phase 1 codebase keep
 ## Current Modules
 
 - `apps/desktop/` - the runnable desktop/text entry point.
+- `START-ECHO-7.bat` and `echo_core/portable_launcher.py` - the portable Windows bootstrap path.
 - `echo_core/config.py` - environment-driven application settings.
 - `echo_core/logging.py` - logging configuration.
 - `echo_core/conversation.py` - conversation flow and exit handling.

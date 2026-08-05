@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from typing import Callable
 
 from echo_core.ai.llama_cpp_provider import LlamaCppProvider
 from echo_core.ai.llama_cpp_server import LlamaCppServerManager, LlamaHealthState
@@ -48,6 +49,19 @@ def _write_stdout(text: str) -> None:
     sys.stdout.flush()
 
 
+def _make_loading_progress_callback() -> Callable[[float], None]:
+    last_reported_milestone = 0
+
+    def progress_callback(elapsed_seconds: float) -> None:
+        nonlocal last_reported_milestone
+        milestone = int(elapsed_seconds // 30) * 30
+        if milestone >= 30 and milestone != last_reported_milestone:
+            print(f"Still loading... {milestone}s")
+            last_reported_milestone = milestone
+
+    return progress_callback
+
+
 def main() -> int:
     """Run the ECHO-7 text console."""
 
@@ -62,7 +76,7 @@ def main() -> int:
 
     if config.ai_provider in {"auto", "llama_cpp"}:
         manager = LlamaCppServerManager(config)
-        startup_result = manager.bootstrap()
+        startup_result = manager.bootstrap_with_progress(progress_callback=_make_loading_progress_callback())
         for line in _build_runtime_summary(startup_result):
             print(line)
 
@@ -108,7 +122,8 @@ def main() -> int:
     if manager is not None and session is not None and session.owns_server:
         print("Stopping local AI...")
         manager.shutdown(session)
-        print("ECHO offline.")
+        print("ECHO stopped.")
+        print("You can safely eject the USB.")
 
     return 0
 

@@ -15,7 +15,7 @@ def test_startup_failure_uses_mock_provider(monkeypatch):
         def __init__(self, config):
             self.config = config
 
-        def bootstrap(self):
+        def bootstrap_with_progress(self, progress_callback=None):
             return SimpleNamespace(
                 ready=False,
                 installation=None,

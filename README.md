@@ -65,9 +65,7 @@ pip install -r requirements.txt
 
 ## Run ECHO
 
-```powershell
-python -m apps.desktop.main
-```
+Double-click `START-ECHO-7.bat` from the USB root.
 
 Example session:
 
