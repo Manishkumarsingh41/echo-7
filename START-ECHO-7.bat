@@ -1,5 +1,5 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions EnableDelayedExpansion
 
 set "USB_ROOT=%~d0\"
 set "ECHO_ROOT=%USB_ROOT%ECHO-7"
@@ -24,7 +24,7 @@ pushd "%ECHO_ROOT%"
 where py >nul 2>nul
 if not errorlevel 1 (
     py -3 -m echo_core.portable_launcher --usb-root "%USB_ROOT%"
-    set "EXITCODE=%errorlevel%"
+    set "EXITCODE=!ERRORLEVEL!"
     popd
     exit /b %EXITCODE%
 )
@@ -32,7 +32,7 @@ if not errorlevel 1 (
 where python >nul 2>nul
 if not errorlevel 1 (
     python -m echo_core.portable_launcher --usb-root "%USB_ROOT%"
-    set "EXITCODE=%errorlevel%"
+    set "EXITCODE=!ERRORLEVEL!"
     popd
     exit /b %EXITCODE%
 )

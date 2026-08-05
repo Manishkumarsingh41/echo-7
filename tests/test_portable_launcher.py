@@ -9,6 +9,7 @@ from echo_core.portable_launcher import (
     choose_launch_settings,
     detect_hardware_profile,
     resolve_usb_layout,
+    normalize_usb_root,
     run_portable_launcher,
     select_python_environment,
 )
@@ -27,6 +28,25 @@ def test_resolve_usb_layout_uses_dynamic_drive_root():
     assert layout.app_root == Path("F:\\") / "ECHO-7"
     assert layout.runtime_executable == Path("F:\\") / "USB-Uncensored-LLM" / "Shared" / "bin" / "llama-server.exe"
     assert layout.model_path == Path("F:\\") / "USB-Uncensored-LLM" / "Shared" / "models" / "Phi-3.5-mini-instruct-Q4_K_M.gguf"
+
+
+def test_normalize_usb_root_handles_drive_letter_variants():
+    assert normalize_usb_root(Path("D:")) == Path("D:\\")
+    assert normalize_usb_root(Path("D:\\")) == Path("D:\\")
+    assert normalize_usb_root(Path("G:")) == Path("G:\\")
+    assert normalize_usb_root(Path("G:\\")) == Path("G:\\")
+
+
+def test_resolve_usb_layout_normalizes_drive_letter_variants():
+    d_layout = resolve_usb_layout(Path("D:"))
+    g_layout = resolve_usb_layout(Path("G:\\"))
+
+    assert d_layout.usb_root == Path("D:\\")
+    assert d_layout.app_root == Path("D:\\") / "ECHO-7"
+    assert d_layout.runtime_executable == Path("D:\\") / "USB-Uncensored-LLM" / "Shared" / "bin" / "llama-server.exe"
+    assert g_layout.usb_root == Path("G:\\")
+    assert g_layout.app_root == Path("G:\\") / "ECHO-7"
+    assert g_layout.runtime_executable == Path("G:\\") / "USB-Uncensored-LLM" / "Shared" / "bin" / "llama-server.exe"
 
 
 def test_choose_launch_settings_for_low_memory_profile():

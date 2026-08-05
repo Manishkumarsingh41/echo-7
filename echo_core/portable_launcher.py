@@ -52,6 +52,7 @@ class UsbLayout:
 
 
 def resolve_usb_layout(usb_root: Path) -> UsbLayout:
+    usb_root = normalize_usb_root(usb_root)
     app_root = usb_root / "ECHO-7"
     runtime_executable = usb_root / "USB-Uncensored-LLM" / "Shared" / "bin" / "llama-server.exe"
     model_path = usb_root / "USB-Uncensored-LLM" / "Shared" / "models" / "Phi-3.5-mini-instruct-Q4_K_M.gguf"
@@ -63,6 +64,17 @@ def resolve_usb_layout(usb_root: Path) -> UsbLayout:
         model_path=model_path,
         venv_python=venv_python,
     )
+
+
+def normalize_usb_root(usb_root: Path) -> Path:
+    normalized = str(usb_root).strip().replace("/", "\\")
+    if (
+        len(normalized) in {2, 3}
+        and len(normalized) >= 2
+        and normalized[1] == ":"
+    ):
+        return Path(f"{normalized[0].upper()}:\\")
+    return Path(normalized)
 
 
 def detect_hardware_profile() -> HardwareProfile:
@@ -158,6 +170,7 @@ def ensure_cached_environment(base_python: Path, cache_root: Path, project_root:
 
 
 def run_portable_launcher(usb_root: Path, *, base_python: Path | None = None) -> int:
+    usb_root = normalize_usb_root(usb_root)
     layout = resolve_usb_layout(usb_root)
     project_root = layout.app_root
     cache_root = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "ECHO-7-Runtime"
