@@ -1,6 +1,17 @@
+## Command to Open README.md
+
+```cmd
+notepad D:\ECHO-7\README.md
+```
+
+---
+
+## Replace Entire README.md with This Updated Content
+
+```markdown
 # ECHO-7
 
-ECHO-7 is a **local-first persistent personal AI companion**. Phase 1 established the clean Python foundation and text-only runtime. Phase 2A adds an optional local llama.cpp integration while preserving the mock provider for testing and fallback. **Phase 2B adds the 4-tier Memory Engine and Importance Evaluator.**
+ECHO-7 is a **local-first persistent personal AI companion**. Phase 1 established the clean Python foundation and text-only runtime. Phase 2A adds an optional local llama.cpp integration while preserving the mock provider for testing and fallback. **Phase 2B adds the 4-tier Memory Engine, Importance Evaluator, and Encrypted Delta Sync.**
 
 ## 🚀 Current Status
 
@@ -11,15 +22,16 @@ ECHO-7 is a **local-first persistent personal AI companion**. Phase 1 establishe
 - ✅ Context window management
 - ✅ **4-Tier Memory Engine (Working/Recent/Important/Archive)**
 - ✅ **Importance Evaluator (pattern-based scoring)**
-- ✅ **63/63 tests passing**
+- ✅ **Stable Key Management**
+- ✅ **Encrypted Delta Sync & Merge**
+- ✅ **72/72 tests passing**
 - 🟡 Desktop Chat UI (~80%)
-- 🔜 Encrypted Delta Sync
-- 🔜 7-day Cloud Retention
-- 🔜 Consolidation & Archive
+- 🔜 7-day Consolidation & Archive
+- 🔜 Experiments & Paper
 
 ## 📊 Memory Architecture
 
-ECHO-7 now includes a four-tier memory hierarchy:
+ECHO-7 includes a four-tier memory hierarchy:
 
 | Tier | Storage | Sync | Purpose |
 |------|---------|------|---------|
@@ -39,6 +51,20 @@ score, tier = evaluator.evaluate("I'm building a project called ECHO-7")
 # score: 0.85, tier: "important"
 ```
 
+### Encrypted Delta Sync
+
+Synchronization uses **delta updates** (only changes) and **stable key management**:
+
+```python
+from echo_core.memory.sync import DeltaSyncEngine
+from echo_core.crypto.key_manager import StableKeyManager
+
+# Generate encrypted delta
+delta = sync_engine.generate_delta()
+# Merge on another device
+merged_count = sync_engine.merge_delta(delta["encrypted_data"])
+```
+
 ## 📁 Project Structure (Updated)
 
 ```
@@ -47,8 +73,11 @@ echo-7/
 │   ├── memory/
 │   │   ├── engine.py          # 4-Tier Memory Engine
 │   │   ├── evaluator.py       # Importance Evaluator
+│   │   ├── sync.py            # Delta Sync Engine
 │   │   └── __init__.py
-│   ├── crypto/                # Stable key management (future)
+│   ├── crypto/
+│   │   ├── key_manager.py     # Stable Key Management
+│   │   └── __init__.py
 │   ├── ai/
 │   │   ├── llama_cpp_provider.py
 │   │   ├── mock_provider.py
@@ -63,6 +92,7 @@ echo-7/
 ├── tests/
 │   ├── test_memory.py         # 10 Memory Engine tests
 │   ├── test_evaluator.py      # 10 Evaluator tests
+│   ├── test_sync.py           # 9 Sync tests
 │   └── ... (43 existing tests)
 ├── data/
 │   ├── memory.db              # SQLite database
@@ -86,53 +116,43 @@ pytest tests/test_memory.py -v
 # Run evaluator tests
 pytest tests/test_evaluator.py -v
 
+# Run sync tests
+pytest tests/test_sync.py -v
+
 # Run with coverage
 pytest tests/ --cov=echo_core
 ```
 
-**Current Test Status: 63/63 Passing**
+**Current Test Status: 72/72 Passing**
 
-## 📄 Original Scope (Phase 1)
+## 📄 Phase Progress
 
-Implemented in Phase 1:
+**Phase 1 (Completed):**
 
-- Project structure for a modular ECHO core
-- Configuration loading from environment variables
-- Lightweight logging setup
-- A deterministic mock AI provider
-- A small conversation engine with exit handling
-- A text CLI that starts with `python -m apps.desktop.main`
-- Basic pytest coverage
-- Optional local llama.cpp provider and USB runtime discovery
+- Project structure, config, logging, mock provider, conversation engine, CLI, basic pytest
 
 **Phase 2A (Completed):**
 
-- Local llama.cpp integration with Phi-3.5 model
-- Health/startup/recovery
-- Streaming responses
-- Context-window management
+- Local llama.cpp integration with Phi-3.5, health/startup/recovery, streaming, context management
 
 **Phase 2B (Completed):**
 
 - 4-Tier Memory Engine (Working/Recent/Important/Archive)
-- SQLite persistence with indexes
-- Working memory boundary (100 entries)
-- Memory statistics and metadata
-- Archive storage and search
+- SQLite persistence, indexes, working memory boundary, statistics, archive search
 - Importance Evaluator with pattern-based scoring
-- 20 new tests (10 for Memory, 10 for Evaluator)
+- Encrypted Delta Sync with stable key management
+- 9 new sync tests, 72 total tests passing
 
 ## 🔜 Future Roadmap
 
 Phase 3 will add:
 
-- Encrypted Delta Sync
-- Stable Key Management
-- 7-day Cloud Retention
 - 7-day Consolidation
 - Permanent Archive
+- Cloud Retention
 - Cross-device merge
-- Research experiments and paper publication
+- Research experiments
+- Paper publication
 
 ## 🚀 Quick Start
 
@@ -208,6 +228,7 @@ MIT License
 - [llama.cpp](https://github.com/ggerganov/llama.cpp)
 - [Phi-3.5](https://huggingface.co/microsoft/Phi-3.5-mini-instruct)
 - [SQLite](https://sqlite.org/)
+- [cryptography](https://cryptography.io/)
 
 ---
 
