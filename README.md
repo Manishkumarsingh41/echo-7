@@ -1,10 +1,101 @@
+```markdown
 # ECHO-7
 
-ECHO-7 is a local-first persistent personal AI companion. Phase 1 established the clean Python foundation and text-only runtime. Phase 2A adds an optional local llama.cpp integration while preserving the mock provider for testing and fallback.
+ECHO-7 is a **local-first persistent personal AI companion**. Phase 1 established the clean Python foundation and text-only runtime. Phase 2A adds an optional local llama.cpp integration while preserving the mock provider for testing and fallback. **Phase 2B adds the 4-tier Memory Engine and Importance Evaluator.**
 
-## Phase 1 Scope
+## 🚀 Current Status
 
-Implemented in this phase:
+- ✅ Project foundation
+- ✅ Portable USB launcher
+- ✅ llama.cpp integration (Phi-3.5)
+- ✅ Streaming conversation
+- ✅ Context window management
+- ✅ **4-Tier Memory Engine (Working/Recent/Important/Archive)**
+- ✅ **Importance Evaluator (pattern-based scoring)**
+- ✅ **63/63 tests passing**
+- 🟡 Desktop Chat UI (~80%)
+- 🔜 Encrypted Delta Sync
+- 🔜 7-day Cloud Retention
+- 🔜 Consolidation & Archive
+
+## 📊 Memory Architecture
+
+ECHO-7 now includes a four-tier memory hierarchy:
+
+| Tier | Storage | Sync | Purpose |
+|------|---------|------|---------|
+| **Working** | RAM | No | Current conversation |
+| **Recent** | SQLite | ✅ Encrypted delta | Cross-device continuity (7-day) |
+| **Important** | SQLite | No | Permanent user-controlled |
+| **Archive** | Local Drive | No | Compressed historical search |
+
+### Importance Evaluator
+
+Messages are automatically scored based on patterns:
+
+```python
+from echo_core.memory.evaluator import MemoryEvaluator
+evaluator = MemoryEvaluator()
+score, tier = evaluator.evaluate("I'm building a project called ECHO-7")
+# score: 0.85, tier: "important"
+```
+
+## 📁 Project Structure (Updated)
+
+```
+echo-7/
+├── echo_core/
+│   ├── memory/
+│   │   ├── engine.py          # 4-Tier Memory Engine
+│   │   ├── evaluator.py       # Importance Evaluator
+│   │   └── __init__.py
+│   ├── crypto/                # Stable key management (future)
+│   ├── ai/
+│   │   ├── llama_cpp_provider.py
+│   │   ├── mock_provider.py
+│   │   └── base.py
+│   ├── conversation.py        # Conversation Engine
+│   ├── config.py
+│   └── portable_launcher.py
+├── apps/
+│   └── desktop/
+│       ├── main.py            # Desktop entry
+│       └── chat_ui.py
+├── tests/
+│   ├── test_memory.py         # 10 Memory Engine tests
+│   ├── test_evaluator.py      # 10 Evaluator tests
+│   └── ... (43 existing tests)
+├── data/
+│   ├── memory.db              # SQLite database
+│   ├── keys/                  # Encryption keys
+│   ├── archives/              # Consolidated archives
+│   └── logs/
+├── experiments/               # Research experiments
+├── paper/                     # Research paper
+└── START-ECHO-7.bat          # Portable launcher
+```
+
+## 🧪 Testing
+
+```powershell
+# Run all tests
+pytest tests/ -v
+
+# Run memory tests
+pytest tests/test_memory.py -v
+
+# Run evaluator tests
+pytest tests/test_evaluator.py -v
+
+# Run with coverage
+pytest tests/ --cov=echo_core
+```
+
+**Current Test Status: 63/63 Passing**
+
+## 📄 Original Scope (Phase 1)
+
+Implemented in Phase 1:
 
 - Project structure for a modular ECHO core
 - Configuration loading from environment variables
@@ -15,33 +106,38 @@ Implemented in this phase:
 - Basic pytest coverage
 - Optional local llama.cpp provider and USB runtime discovery
 
-Not implemented yet:
+**Phase 2A (Completed):**
 
-- Android support
-- Cloud sync
-- Voice input or spoken output
-- Vision and camera features
-- Face recognition
-- RAG / document ingestion
-- PC automation
-- Large local models
-- Permanent memory
-- Voice, vision, automation, sync, and mobile features
+- Local llama.cpp integration with Phi-3.5 model
+- Health/startup/recovery
+- Streaming responses
+- Context-window management
 
-## Architecture
+**Phase 2B (Completed):**
 
-The code is organized so future modules can be added without rewriting the conversation layer.
+- 4-Tier Memory Engine (Working/Recent/Important/Archive)
+- SQLite persistence with indexes
+- Working memory boundary (100 entries)
+- Memory statistics and metadata
+- Archive storage and search
+- Importance Evaluator with pattern-based scoring
+- 20 new tests (10 for Memory, 10 for Evaluator)
 
-- `apps/desktop/` contains the runnable desktop entry point.
-- `echo_core/config.py` loads application settings.
-- `echo_core/logging.py` configures app logging.
-- `echo_core/conversation.py` owns the text conversation flow and exit handling.
-- `echo_core/ai/` contains the AI provider abstraction and the current mock provider.
-- Other `echo_core/*` folders are reserved for future features.
+## 🔜 Future Roadmap
 
-See `docs/architecture.md` for the modular design overview.
+Phase 3 will add:
 
-## Windows Setup
+- Encrypted Delta Sync
+- Stable Key Management
+- 7-day Cloud Retention
+- 7-day Consolidation
+- Permanent Archive
+- Cross-device merge
+- Research experiments and paper publication
+
+## 🚀 Quick Start
+
+### Windows Setup
 
 Create a virtual environment from the repository root:
 
@@ -56,14 +152,14 @@ If PowerShell blocks activation, run this once in the current shell:
 Set-ExecutionPolicy -Scope Process RemoteSigned
 ```
 
-## Install Dependencies
+### Install Dependencies
 
 ```powershell
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-## Run ECHO
+### Run ECHO
 
 Double-click `START-ECHO-7.bat` from the USB root.
 
@@ -82,12 +178,39 @@ You: exit
 ECHO: Shutting down. Goodbye.
 ```
 
-## Run Tests
+### Run Tests
 
 ```powershell
-pytest
+pytest tests/ -v
 ```
 
-## Future Roadmap
+## 📝 Research Paper
 
-Phase 2A focuses on the local LLM path only. Later phases will gradually add memory, voice, knowledge retrieval, identity features, sync, and safer tool access. Each capability should plug into the existing core instead of replacing it.
+ECHO-7 is being developed as a research project with the paper:
+
+> **"ECHO-7: A Local-First Personal AI Architecture with 7-Day Rolling Memory Synchronization and User-Controlled Memory Consolidation"**
+
+Target venues: AAAI 2027, ICML 2027, UIST 2027
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m "Add amazing feature"`)
+4. Push branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+MIT License
+
+## 🙏 Acknowledgments
+
+- [llama.cpp](https://github.com/ggerganov/llama.cpp)
+- [Phi-3.5](https://huggingface.co/microsoft/Phi-3.5-mini-instruct)
+- [SQLite](https://sqlite.org/)
+
+---
+
+> **ECHO-7: One Identity, Multiple Bodies, One Continuous Memory.**
+```
