@@ -207,14 +207,6 @@ ECHO: Shutting down. Goodbye.
 pytest tests/ -v
 ```
 
-## 📝 Research Paper
-
-ECHO-7 is being developed as a research project with the paper:
-
-> **"ECHO-7: A Local-First Personal AI Architecture with 7-Day Rolling Memory Synchronization and User-Controlled Memory Consolidation"**
-
-Target venues: AAAI 2027, ICML 2027, UIST 2027
-
 ## 🤝 Contributing
 
 1. Fork the repository
@@ -222,6 +214,16 @@ Target venues: AAAI 2027, ICML 2027, UIST 2027
 3. Commit changes (`git commit -m "Add amazing feature"`)
 4. Push branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+
+## 📄 Research Paper
+
+My paper is now available on SSRN:
+
+> **"ECHO-7: A Local-First Personal AI Architecture with 7-Day Rolling Memory Synchronization and User-Controlled Memory Consolidation"**
+
+- 📄 Read on SSRN: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7254322
+- 🎯 SSRN Abstract ID: 7254322
 
 ## 📄 License
 
