@@ -285,22 +285,49 @@ class LlamaCppServerManager:
     def check_health(self) -> LlamaCppHealthCheck:
         try:
             request = Request(self._health_url, method="GET")
-            with self._opener(request, timeout=self._config.llama_request_timeout_seconds) as response:
+            with self._opener(
+                request,
+                timeout=self._config.llama_request_timeout_seconds,
+            ) as response:
                 status_code = int(getattr(response, "status", 200))
                 body = self._read_body(response)
         except HTTPError as exc:
             body = self._read_http_error_body(exc)
             if exc.code == 503:
-                return LlamaCppHealthCheck(LlamaHealthState.LOADING, exc.code, body)
-            return LlamaCppHealthCheck(LlamaHealthState.UNAVAILABLE, exc.code, body)
+                return LlamaCppHealthCheck(
+                    LlamaHealthState.LOADING,
+                    exc.code,
+                    body,
+                )
+            return LlamaCppHealthCheck(
+                LlamaHealthState.UNAVAILABLE,
+                exc.code,
+                body,
+            )
         except (URLError, TimeoutError, OSError, ValueError):
-            return LlamaCppHealthCheck(LlamaHealthState.UNAVAILABLE, None, "")
+            return LlamaCppHealthCheck(
+                LlamaHealthState.UNAVAILABLE,
+                None,
+                "",
+            )
 
         if status_code == 200:
-            return LlamaCppHealthCheck(LlamaHealthState.READY, status_code, body)
+            return LlamaCppHealthCheck(
+                LlamaHealthState.READY,
+                status_code,
+                body,
+            )
         if status_code == 503:
-            return LlamaCppHealthCheck(LlamaHealthState.LOADING, status_code, body)
-        return LlamaCppHealthCheck(LlamaHealthState.UNAVAILABLE, status_code, body)
+            return LlamaCppHealthCheck(
+                LlamaHealthState.LOADING,
+                status_code,
+                body,
+            )
+        return LlamaCppHealthCheck(
+            LlamaHealthState.UNAVAILABLE,
+            status_code,
+            body,
+        )
 
     def wait_for_ready(
         self,
@@ -357,7 +384,10 @@ class LlamaCppServerManager:
             except subprocess.TimeoutExpired:
                 pass
 
-    def _launch_server(self, installation: LlamaCppInstallation) -> subprocess.Popen[bytes] | None:
+    def _launch_server(
+        self,
+        installation: LlamaCppInstallation,
+    ) -> subprocess.Popen[bytes] | None:
         command = [
             str(installation.runtime_path),
             "-m",
@@ -372,10 +402,20 @@ class LlamaCppServerManager:
             str(self._config.llama_threads),
             "-ngl",
             str(self._config.llama_gpu_layers),
+            "-np",
+            str(max(1, self._config.llama_parallel)),
+            "--cache-ram",
+            str(max(0, self._config.llama_cache_ram_mb)),
         ]
 
+        if self._config.llama_no_warmup:
+            command.append("--no-warmup")
+
         creationflags = 0
-        if os.name == "nt" and hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
+        if os.name == "nt" and hasattr(
+            subprocess,
+            "CREATE_NEW_PROCESS_GROUP",
+        ):
             creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
 
         try:
@@ -399,7 +439,11 @@ class LlamaCppServerManager:
         *,
         diagnostic: str = "",
     ) -> LlamaCppStartupResult:
-        status_lines = self._build_status_lines(installation, health)
+        status_lines = self._build_status_lines(
+            installation,
+            health,
+        )
+
         return LlamaCppStartupResult(
             ready=ready,
             installation=installation,
@@ -419,6 +463,7 @@ class LlamaCppServerManager:
     ) -> LlamaCppServerSession | None:
         if installation is None:
             return None
+
         return LlamaCppServerSession(
             installation=installation,
             process=process,
@@ -431,19 +476,29 @@ class LlamaCppServerManager:
         health: LlamaCppHealthCheck,
     ) -> tuple[str, ...]:
         lines: list[str] = []
+
         if installation is not None:
             lines.append("ECHO Drive: Found")
             lines.append("Runtime: llama.cpp")
-            lines.append(f"Model: {installation.model_label}")
+            lines.append(
+                f"Model: {installation.model_label}"
+            )
 
         if health.state is LlamaHealthState.LOADING:
             lines.append("Loading local AI...")
-            lines.append("This may take up to a few minutes.")
+            lines.append(
+                "This may take up to a few minutes."
+            )
+
         elif health.state is LlamaHealthState.READY:
             lines.append("Brain: ONLINE")
             lines.append("Mode: Text")
+
         else:
-            lines.append("Local ECHO brain unavailable.")
+            lines.append(
+                "Local ECHO brain unavailable."
+            )
+
         return tuple(lines)
 
     def _installation_from_paths(
@@ -457,46 +512,110 @@ class LlamaCppServerManager:
             runtime_path=runtime_path,
             model_path=model_path,
             drive_root=root,
-            model_label=self._format_model_label(model_path),
+            model_label=self._format_model_label(
+                model_path
+            ),
         )
 
     @staticmethod
-    def _format_model_label(model_path: Path) -> str:
+    def _format_model_label(
+        model_path: Path,
+    ) -> str:
         stem = model_path.stem
-        if stem.startswith("Phi-3.5-mini-instruct"):
+
+        if stem.startswith(
+            "Phi-3.5-mini-instruct"
+        ):
             return "Phi-3.5 Mini Instruct Q4"
-        return stem.replace("_", " ").replace("-", " ").title()
+
+        return (
+            stem
+            .replace("_", " ")
+            .replace("-", " ")
+            .title()
+        )
 
     @staticmethod
-    def _resolve_override(value: str) -> Path | None:
+    def _resolve_override(
+        value: str,
+    ) -> Path | None:
         stripped = value.strip()
+
         if not stripped:
             return None
+
         return Path(stripped).expanduser()
 
     @staticmethod
-    def _read_body(response: object) -> str:
-        reader = getattr(response, "read", None)
+    def _read_body(
+        response: object,
+    ) -> str:
+        reader = getattr(
+            response,
+            "read",
+            None,
+        )
+
         if reader is None:
             return ""
+
         raw_body = reader()
+
         if isinstance(raw_body, bytes):
-            return raw_body.decode("utf-8", errors="replace").strip()
+            return raw_body.decode(
+                "utf-8",
+                errors="replace",
+            ).strip()
+
         return str(raw_body).strip()
 
     @staticmethod
-    def _read_http_error_body(exc: HTTPError) -> str:
+    def _read_http_error_body(
+        exc: HTTPError,
+    ) -> str:
         try:
             body = exc.read()
+
         except OSError:
             return ""
-        return body.decode("utf-8", errors="replace").strip()
 
-    def _build_recovery_config(self) -> AppConfig:
-        conservative_context = max(768, min(self._config.llama_context_size, 1024))
-        conservative_threads = max(2, min(self._config.llama_threads, 2))
-        conservative_output = max(128, min(self._config.llama_max_output_tokens, 192))
-        conservative_timeout = max(self._config.llama_startup_timeout_seconds, 240.0)
+        return body.decode(
+            "utf-8",
+            errors="replace",
+        ).strip()
+
+    def _build_recovery_config(
+        self,
+    ) -> AppConfig:
+        conservative_context = max(
+            768,
+            min(
+                self._config.llama_context_size,
+                1024,
+            ),
+        )
+
+        conservative_threads = max(
+            2,
+            min(
+                self._config.llama_threads,
+                2,
+            ),
+        )
+
+        conservative_output = max(
+            128,
+            min(
+                self._config.llama_max_output_tokens,
+                192,
+            ),
+        )
+
+        conservative_timeout = max(
+            self._config.llama_startup_timeout_seconds,
+            240.0,
+        )
+
         return replace(
             self._config,
             llama_context_size=conservative_context,
@@ -505,50 +624,113 @@ class LlamaCppServerManager:
             llama_startup_timeout_seconds=conservative_timeout,
         )
 
-    def _is_port_occupied(self) -> bool:
+    def _is_port_occupied(
+        self,
+    ) -> bool:
         try:
-            with socket.create_connection((self._config.llama_host, self._config.llama_port), timeout=0.25):
+            with socket.create_connection(
+                (
+                    self._config.llama_host,
+                    self._config.llama_port,
+                ),
+                timeout=0.25,
+            ):
                 return True
+
         except OSError:
             return False
 
-    def _find_model_for_root(self, drive_root: str) -> Path | None:
+    def _find_model_for_root(
+        self,
+        drive_root: str,
+    ) -> Path | None:
         root_path = Path(drive_root)
-        candidate = root_path / USB_MODEL_FILE
-        return candidate if candidate.exists() else None
 
-    def _find_runtime_for_root(self, drive_root: str) -> Path | None:
+        candidate = (
+            root_path
+            / USB_MODEL_FILE
+        )
+
+        return (
+            candidate
+            if candidate.exists()
+            else None
+        )
+
+    def _find_runtime_for_root(
+        self,
+        drive_root: str,
+    ) -> Path | None:
         root_path = Path(drive_root)
-        candidate = root_path / USB_RUNTIME_EXE
-        return candidate if candidate.exists() else None
+
+        candidate = (
+            root_path
+            / USB_RUNTIME_EXE
+        )
+
+        return (
+            candidate
+            if candidate.exists()
+            else None
+        )
 
     @staticmethod
-    def _unique_paths(paths: Iterable[Path]) -> Sequence[Path]:
+    def _unique_paths(
+        paths: Iterable[Path],
+    ) -> Sequence[Path]:
         seen: set[str] = set()
         ordered_paths: list[Path] = []
+
         for path in paths:
             key = str(path).lower()
+
             if key in seen:
                 continue
+
             seen.add(key)
             ordered_paths.append(path)
+
         return tuple(ordered_paths)
 
     @staticmethod
-    def _default_drive_roots() -> Iterable[Path]:
+    def _default_drive_roots(
+    ) -> Iterable[Path]:
         if os.name != "nt":
             return []
 
         try:
             import ctypes
 
-            drive_bitmask = ctypes.windll.kernel32.GetLogicalDrives()
+            drive_bitmask = (
+                ctypes
+                .windll
+                .kernel32
+                .GetLogicalDrives()
+            )
+
             roots: list[Path] = []
-            for index, letter in enumerate(string.ascii_uppercase):
+
+            for index, letter in enumerate(
+                string.ascii_uppercase
+            ):
                 if drive_bitmask & (1 << index):
-                    root = Path(f"{letter}:\\")
-                    if ctypes.windll.kernel32.GetDriveTypeW(str(root)) == 2:
+                    root = Path(
+                        f"{letter}:\\"
+                    )
+
+                    drive_type = (
+                        ctypes
+                        .windll
+                        .kernel32
+                        .GetDriveTypeW(
+                            str(root)
+                        )
+                    )
+
+                    if drive_type == 2:
                         roots.append(root)
+
             return roots
+
         except Exception:
             return []

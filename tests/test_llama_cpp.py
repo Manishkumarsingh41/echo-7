@@ -459,3 +459,44 @@ def test_conversation_engine_stream_failure_does_not_commit_history():
     assert turn.succeeded is False
     assert turn.reply == "Local brain stream failed. Please try again."
     assert engine.history == ()
+def test_launch_server_uses_fast_startup_options(tmp_path):
+    installation = _build_installation(tmp_path)
+
+    captured: dict[str, object] = {}
+
+    def fake_popen(command, **kwargs):
+        captured["command"] = command
+        captured["kwargs"] = kwargs
+        return FakeProcess()
+
+    config = replace(
+        AppConfig(),
+        llama_parallel=1,
+        llama_cache_ram_mb=0,
+        llama_no_warmup=True,
+    )
+
+    manager = LlamaCppServerManager(
+        config,
+        popen_factory=fake_popen,
+    )
+
+    process = manager._launch_server(installation)
+
+    assert process is not None
+
+    command = captured["command"]
+
+    assert "-np" in command
+    assert command[command.index("-np") + 1] == "1"
+
+    assert "--cache-ram" in command
+    assert command[command.index("--cache-ram") + 1] == "0"
+
+    assert "--no-warmup" in command
+
+    assert "-t" in command
+    assert command[command.index("-t") + 1] == "4"
+
+    assert "-c" in command
+    assert command[command.index("-c") + 1] == "2048"

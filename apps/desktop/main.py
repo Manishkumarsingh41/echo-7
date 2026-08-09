@@ -1,18 +1,19 @@
 from __future__ import annotations
 
 import logging
-import sys
 from typing import Callable
 
+from apps.desktop.chat_ui import launch_chat_ui
 from echo_core.ai.llama_cpp_provider import LlamaCppProvider
-from echo_core.ai.llama_cpp_server import LlamaCppServerManager, LlamaHealthState
+from echo_core.ai.llama_cpp_server import (
+    LlamaCppServerManager,
+    LlamaHealthState,
+)
 from echo_core.ai.mock_provider import MockAIProvider
 from echo_core.config import load_config
 from echo_core.conversation import (
     ContextWindowSettings,
     ConversationEngine,
-    run_streaming_text_chat,
-    run_text_chat,
 )
 from echo_core.logging import configure_logging
 
@@ -23,30 +24,30 @@ def build_banner(echo_name: str) -> str:
     return (
         "# ================================\n"
         f"{echo_name}\n"
-        "Searching for ECHO brain..."
+        "Starting ECHO brain..."
     )
 
 
 def _build_runtime_summary(result) -> list[str]:
     lines: list[str] = []
+
     if result.installation is not None:
         lines.append("ECHO Drive: Found")
         lines.append("Runtime: llama.cpp")
         lines.append(f"Model: {result.installation.model_label}")
+
     if result.health.state is LlamaHealthState.LOADING:
         lines.append("Loading local AI...")
         lines.append("This may take up to a few minutes.")
+
     elif result.health.state is LlamaHealthState.READY:
         lines.append("Brain: ONLINE")
-        lines.append("Mode: Text")
+        lines.append("Mode: GUI")
+
     else:
         lines.append("Local ECHO brain unavailable.")
+
     return lines
-
-
-def _write_stdout(text: str) -> None:
-    sys.stdout.write(text)
-    sys.stdout.flush()
 
 
 def _make_loading_progress_callback() -> Callable[[float], None]:
@@ -54,8 +55,13 @@ def _make_loading_progress_callback() -> Callable[[float], None]:
 
     def progress_callback(elapsed_seconds: float) -> None:
         nonlocal last_reported_milestone
+
         milestone = int(elapsed_seconds // 30) * 30
-        if milestone >= 30 and milestone != last_reported_milestone:
+
+        if (
+            milestone >= 30
+            and milestone != last_reported_milestone
+        ):
             print(f"Still loading... {milestone}s")
             last_reported_milestone = milestone
 
@@ -63,7 +69,7 @@ def _make_loading_progress_callback() -> Callable[[float], None]:
 
 
 def main() -> int:
-    """Run the ECHO-7 text console."""
+    """Start ECHO-7 and launch the desktop chat interface."""
 
     config = load_config()
     configure_logging(config.log_level)
@@ -76,7 +82,11 @@ def main() -> int:
 
     if config.ai_provider in {"auto", "llama_cpp"}:
         manager = LlamaCppServerManager(config)
-        startup_result = manager.bootstrap_with_progress(progress_callback=_make_loading_progress_callback())
+
+        startup_result = manager.bootstrap_with_progress(
+            progress_callback=_make_loading_progress_callback()
+        )
+
         for line in _build_runtime_summary(startup_result):
             print(line)
 
@@ -87,17 +97,33 @@ def main() -> int:
                 max_tokens=config.llama_max_output_tokens,
                 system_prompt=config.system_prompt,
             )
+
             session = startup_result.session
-            logging.debug("Local ECHO brain online: %s", startup_result.diagnostic or "ready")
+
+            logging.debug(
+                "Local ECHO brain online: %s",
+                startup_result.diagnostic or "ready",
+            )
+
         else:
-            provider = MockAIProvider(echo_name=config.echo_name)
+            provider = MockAIProvider(
+                echo_name=config.echo_name,
+            )
+
             logging.warning(
                 "Local ECHO brain unavailable: %s",
-                startup_result.diagnostic or startup_result.health.body or "unknown startup failure",
+                startup_result.diagnostic
+                or startup_result.health.body
+                or "unknown startup failure",
             )
+
             print("Using MockProvider fallback.")
+
     else:
-        provider = MockAIProvider(echo_name=config.echo_name)
+        provider = MockAIProvider(
+            echo_name=config.echo_name,
+        )
+
         print("MockProvider selected.")
 
     engine = ConversationEngine(
@@ -110,20 +136,37 @@ def main() -> int:
         ),
     )
 
-    if startup_result is not None and startup_result.ready:
-        run_streaming_text_chat(
-            engine=engine,
-            input_func=input,
-            write_func=_write_stdout,
-        )
-    else:
-        run_text_chat(engine=engine, input_func=input, output_func=print)
+    shutdown_complete = False
 
-    if manager is not None and session is not None and session.owns_server:
-        print("Stopping local AI...")
-        manager.shutdown(session)
-        print("ECHO stopped.")
-        print("You can safely eject the USB.")
+    def shutdown_echo() -> None:
+        nonlocal shutdown_complete
+
+        if shutdown_complete:
+            return
+
+        shutdown_complete = True
+
+        if (
+            manager is not None
+            and session is not None
+            and session.owns_server
+        ):
+            print("Stopping local AI...")
+            manager.shutdown(session)
+            print("ECHO stopped.")
+            print("You can safely eject the USB.")
+
+    try:
+        print("Opening ECHO-7 chat...")
+
+        launch_chat_ui(
+            engine=engine,
+            echo_name=config.echo_name,
+            on_close=shutdown_echo,
+        )
+
+    finally:
+        shutdown_echo()
 
     return 0
 

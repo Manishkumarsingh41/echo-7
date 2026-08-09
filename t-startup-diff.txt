@@ -1,0 +1,79 @@
+[1mdiff --git a/apps/desktop/main.py b/apps/desktop/main.py[m
+[1mindex 678f772..19839ac 100644[m
+[1m--- a/apps/desktop/main.py[m
+[1m+++ b/apps/desktop/main.py[m
+[36m@@ -23,7 +23,7 @@[m [mdef build_banner(echo_name: str) -> str:[m
+     return ([m
+         "# ================================\n"[m
+         f"{echo_name}\n"[m
+[31m-        "Searching for ECHO brain..."[m
+[32m+[m[32m        "Starting ECHO brain..."[m
+     )[m
+ [m
+ [m
+[1mdiff --git a/echo_core/ai/llama_cpp_server.py b/echo_core/ai/llama_cpp_server.py[m
+[1mindex 90089dc..db43b0b 100644[m
+[1m--- a/echo_core/ai/llama_cpp_server.py[m
+[1m+++ b/echo_core/ai/llama_cpp_server.py[m
+[36m@@ -372,7 +372,13 @@[m [mclass LlamaCppServerManager:[m
+             str(self._config.llama_threads),[m
+             "-ngl",[m
+             str(self._config.llama_gpu_layers),[m
+[32m+[m[32m            "-np",[m
+[32m+[m[32m            str(max(1, self._config.llama_parallel)),[m
+[32m+[m[32m            "--cache-ram",[m
+[32m+[m[32m            str(max(0, self._config.llama_cache_ram_mb)),[m
+         ][m
+[32m+[m[32m        if self._config.llama_no_warmup:[m
+[32m+[m[32m            command.append("--no-warmup")[m
+ [m
+         creationflags = 0[m
+         if os.name == "nt" and hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):[m
+[1mdiff --git a/echo_core/config.py b/echo_core/config.py[m
+[1mindex eceefed..9f891f9 100644[m
+[1m--- a/echo_core/config.py[m
+[1m+++ b/echo_core/config.py[m
+[36m@@ -24,6 +24,9 @@[m [mDEFAULT_LLAMACPP_REQUEST_TIMEOUT_SECONDS = 180.0[m
+ DEFAULT_LLAMACPP_POLL_INTERVAL_SECONDS = 2.0[m
+ DEFAULT_LLAMACPP_MAX_OUTPUT_TOKENS = 256[m
+ DEFAULT_LLAMACPP_CONTEXT_RETRY_SAFETY_TOKENS = 128[m
+[32m+[m[32mDEFAULT_LLAMACPP_PARALLEL = 1[m
+[32m+[m[32mDEFAULT_LLAMACPP_CACHE_RAM_MB = 0[m
+[32m+[m[32mDEFAULT_LLAMACPP_NO_WARMUP = True[m
+ [m
+ [m
+ @dataclass(frozen=True, slots=True)[m
+[36m@@ -46,6 +49,9 @@[m [mclass AppConfig:[m
+     llama_poll_interval_seconds: float = DEFAULT_LLAMACPP_POLL_INTERVAL_SECONDS[m
+     llama_max_output_tokens: int = DEFAULT_LLAMACPP_MAX_OUTPUT_TOKENS[m
+     llama_context_retry_safety_tokens: int = DEFAULT_LLAMACPP_CONTEXT_RETRY_SAFETY_TOKENS[m
+[32m+[m[32m    llama_parallel: int = DEFAULT_LLAMACPP_PARALLEL[m
+[32m+[m[32m    llama_cache_ram_mb: int = DEFAULT_LLAMACPP_CACHE_RAM_MB[m
+[32m+[m[32m    llama_no_warmup: bool = DEFAULT_LLAMACPP_NO_WARMUP[m
+     llama_runtime_path: str = ""[m
+     llama_model_path: str = ""[m
+ [m
+[36m@@ -70,6 +76,13 @@[m [mdef _get_float_env(name: str, default: float) -> float:[m
+         return default[m
+ [m
+ [m
+[32m+[m[32mdef _get_bool_env(name: str, default: bool) -> bool:[m
+[32m+[m[32m    value = os.getenv(name)[m
+[32m+[m[32m    if value is None or not value.strip():[m
+[32m+[m[32m        return default[m
+[32m+[m[32m    return value.strip().lower() in {"1", "true", "yes", "on"}[m
+[32m+[m
+[32m+[m
+ def load_config() -> AppConfig:[m
+     """Load application configuration from environment variables."""[m
+     return AppConfig([m
+[36m@@ -110,6 +123,9 @@[m [mdef load_config() -> AppConfig:[m
+             "ECHO_LLAMA_CONTEXT_RETRY_SAFETY_TOKENS",[m
+             DEFAULT_LLAMACPP_CONTEXT_RETRY_SAFETY_TOKENS,[m
+         ),[m
+[32m+[m[32m        llama_parallel=_get_int_env("ECHO_LLAMA_PARALLEL", DEFAULT_LLAMACPP_PARALLEL),[m
+[32m+[m[32m        llama_cache_ram_mb=_get_int_env("ECHO_LLAMA_CACHE_RAM_MB", DEFAULT_LLAMACPP_CACHE_RAM_MB),[m
+[32m+[m[32m        llama_no_warmup=_get_bool_env("ECHO_LLAMA_NO_WARMUP", DEFAULT_LLAMACPP_NO_WARMUP),[m
+         llama_runtime_path=os.getenv("ECHO_LLAMA_RUNTIME_PATH", ""),[m
+         llama_model_path=os.getenv("ECHO_LLAMA_MODEL_PATH", ""),[m
+     )[m
