@@ -1,4 +1,3 @@
-```markdown
 # ECHO-7
 
 ECHO-7 is a **local-first persistent personal AI companion**. Phase 1 established the clean Python foundation and text-only runtime. Phase 2A adds an optional local llama.cpp integration while preserving the mock provider for testing and fallback. **Phase 2B adds the 4-tier Memory Engine and Importance Evaluator.**
