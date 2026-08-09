@@ -4,6 +4,11 @@ from dataclasses import dataclass
 from threading import Event
 from typing import Callable
 
+# --- ECHO-7 Memory Engine Imports ---
+from echo_core.memory.engine import MemoryEngine, MemoryType
+from echo_core.memory.evaluator import MemoryEvaluator
+# -------------------------------------
+
 from echo_core.ai.base import (
     AIProvider,
     AIProviderConnectionError,
@@ -59,15 +64,18 @@ class ConversationEngine:
         self._context_settings = context_settings or ContextWindowSettings()
         self._history: list[ChatMessage] = []
 
+        # --- ECHO-7 Memory Engine Initialization ---
+        self.memory_engine = MemoryEngine()
+        self.memory_evaluator = MemoryEvaluator()
+        # -------------------------------------------
+
     @property
     def history(self) -> tuple[ChatMessage, ...]:
         """Return the current runtime conversation history."""
-
         return tuple(self._history)
 
     def clear_history(self) -> None:
         """Clear the current runtime conversation history."""
-
         self._history.clear()
 
     def load_history(
@@ -75,7 +83,6 @@ class ConversationEngine:
         messages: list[ChatMessage] | tuple[ChatMessage, ...],
     ) -> None:
         """Replace runtime history with messages from a saved chat."""
-
         valid_messages: list[ChatMessage] = []
 
         for message in messages:
@@ -96,6 +103,34 @@ class ConversationEngine:
 
         self._history = valid_messages
 
+    # --- ECHO-7 Memory Context Helper ---
+    def get_memory_context(self) -> str:
+        """Build context from memory tiers for LLM (future use)."""
+        context_parts = []
+
+        # Important memories (permanent)
+        important = self.memory_engine.get_important()
+        if important:
+            context_parts.append("## Important Memories")
+            for mem in important[:5]:
+                context_parts.append(f"- {mem.content}")
+
+        # Recent memories (last 7 days)
+        recent = self.memory_engine.get_recent(days=7)
+        if recent:
+            context_parts.append("## Recent Context")
+            for mem in recent[:10]:
+                context_parts.append(f"- {mem.content}")
+
+        # Working memory (current session)
+        working_context = self.memory_engine.get_working_context()
+        if working_context:
+            context_parts.append("## Current Conversation")
+            context_parts.append(working_context)
+
+        return "\n".join(context_parts) if context_parts else ""
+    # ------------------------------------
+
     @classmethod
     def is_exit_command(cls, message: str) -> bool:
         return message.strip().lower() in cls._exit_commands
@@ -113,6 +148,16 @@ class ConversationEngine:
                 reply="Shutting down. Goodbye.",
                 should_exit=True,
             )
+
+        # --- Store user message in memory ---
+        importance_score, suggested_tier = self.memory_evaluator.evaluate(normalized_message)
+        if suggested_tier == "important":
+            self.memory_engine.store(normalized_message, MemoryType.IMPORTANT, importance_score)
+        elif suggested_tier == "recent":
+            self.memory_engine.store(normalized_message, MemoryType.RECENT, importance_score)
+        else:
+            self.memory_engine.store(normalized_message, MemoryType.WORKING, importance_score)
+        # ------------------------------------
 
         history_snapshot = tuple(self._history)
 
@@ -133,6 +178,10 @@ class ConversationEngine:
             normalized_message,
             reply,
         )
+
+        # --- Store assistant response in working memory ---
+        self.memory_engine.store(reply, MemoryType.WORKING, 0.0)
+        # ---------------------------------------------------
 
         return ConversationTurn(
             reply=reply,
@@ -156,6 +205,16 @@ class ConversationEngine:
                 reply="Shutting down. Goodbye.",
                 should_exit=True,
             )
+
+        # --- Store user message in memory ---
+        importance_score, suggested_tier = self.memory_evaluator.evaluate(normalized_message)
+        if suggested_tier == "important":
+            self.memory_engine.store(normalized_message, MemoryType.IMPORTANT, importance_score)
+        elif suggested_tier == "recent":
+            self.memory_engine.store(normalized_message, MemoryType.RECENT, importance_score)
+        else:
+            self.memory_engine.store(normalized_message, MemoryType.WORKING, importance_score)
+        # ------------------------------------
 
         history_snapshot = tuple(self._history)
 
@@ -186,6 +245,10 @@ class ConversationEngine:
             reply,
         )
 
+        # --- Store assistant response in working memory ---
+        self.memory_engine.store(reply, MemoryType.WORKING, 0.0)
+        # ---------------------------------------------------
+
         return ConversationTurn(
             reply=reply,
         )
@@ -197,7 +260,6 @@ class ConversationEngine:
         retry: bool = False,
     ) -> tuple[ChatMessage, ...]:
         """Build history trimmed to fit the active context window."""
-
         return tuple(
             self._trim_history_for_budget(
                 tuple(self._history),
