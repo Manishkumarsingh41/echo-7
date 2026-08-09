@@ -1,6 +1,6 @@
 # ECHO-7
 
-ECHO-7 is a **local-first persistent personal AI companion**. Phase 1 established the clean Python foundation and text-only runtime. Phase 2A adds an optional local llama.cpp integration while preserving the mock provider for testing and fallback. **Phase 2B adds the 4-tier Memory Engine, Importance Evaluator, and Encrypted Delta Sync.**
+ECHO-7 is a **local-first persistent personal AI companion**. Phase 1 established the clean Python foundation and text-only runtime. Phase 2A adds an optional local llama.cpp integration while preserving the mock provider for testing and fallback. **Phase 2B adds the 4-tier Memory Engine, Importance Evaluator, Encrypted Delta Sync, and 7-Day Consolidation.**
 
 ## 🚀 Current Status
 
@@ -13,9 +13,9 @@ ECHO-7 is a **local-first persistent personal AI companion**. Phase 1 establishe
 - ✅ **Importance Evaluator (pattern-based scoring)**
 - ✅ **Stable Key Management**
 - ✅ **Encrypted Delta Sync & Merge**
-- ✅ **72/72 tests passing**
+- ✅ **7-Day Consolidation Engine (Deduplication + Archiving)**
+- ✅ **78/78 tests passing**
 - 🟡 Desktop Chat UI (~80%)
-- 🔜 7-day Consolidation & Archive
 - 🔜 Experiments & Paper
 
 ## 📊 Memory Architecture
@@ -46,12 +46,24 @@ Synchronization uses **delta updates** (only changes) and **stable key managemen
 
 ```python
 from echo_core.memory.sync import DeltaSyncEngine
-from echo_core.crypto.key_manager import StableKeyManager
 
 # Generate encrypted delta
 delta = sync_engine.generate_delta()
 # Merge on another device
 merged_count = sync_engine.merge_delta(delta["encrypted_data"])
+```
+
+### 7-Day Consolidation
+
+Memories older than 7 days are automatically consolidated:
+
+```python
+from echo_core.memory.consolidation import ConsolidationEngine
+
+# Run consolidation
+result = consolidation_engine.consolidate()
+print(f"Consolidated {result['consolidated']} memories")
+# Output: Consolidated 5 memories, 2 duplicates removed
 ```
 
 ## 📁 Project Structure (Updated)
@@ -63,6 +75,7 @@ echo-7/
 │   │   ├── engine.py          # 4-Tier Memory Engine
 │   │   ├── evaluator.py       # Importance Evaluator
 │   │   ├── sync.py            # Delta Sync Engine
+│   │   ├── consolidation.py   # 7-Day Consolidation Engine
 │   │   └── __init__.py
 │   ├── crypto/
 │   │   ├── key_manager.py     # Stable Key Management
@@ -82,6 +95,7 @@ echo-7/
 │   ├── test_memory.py         # 10 Memory Engine tests
 │   ├── test_evaluator.py      # 10 Evaluator tests
 │   ├── test_sync.py           # 9 Sync tests
+│   ├── test_consolidation.py  # 6 Consolidation tests
 │   └── ... (43 existing tests)
 ├── data/
 │   ├── memory.db              # SQLite database
@@ -108,11 +122,14 @@ pytest tests/test_evaluator.py -v
 # Run sync tests
 pytest tests/test_sync.py -v
 
+# Run consolidation tests
+pytest tests/test_consolidation.py -v
+
 # Run with coverage
 pytest tests/ --cov=echo_core
 ```
 
-**Current Test Status: 72/72 Passing**
+**Current Test Status: 78/78 Passing**
 
 ## 📄 Phase Progress
 
@@ -130,18 +147,16 @@ pytest tests/ --cov=echo_core
 - SQLite persistence, indexes, working memory boundary, statistics, archive search
 - Importance Evaluator with pattern-based scoring
 - Encrypted Delta Sync with stable key management
-- 9 new sync tests, 72 total tests passing
+- 7-Day Consolidation Engine with deduplication and archiving
+- 35 new tests (10 Memory, 10 Evaluator, 9 Sync, 6 Consolidation)
+- 78 total tests passing
 
 ## 🔜 Future Roadmap
 
-Phase 3 will add:
-
-- 7-day Consolidation
-- Permanent Archive
-- Cloud Retention
-- Cross-device merge
-- Research experiments
-- Paper publication
+- **Cloud Retention** – optional temporary cloud sync
+- **Cross-device merge** – full delta merging
+- **Research experiments** – retrieval accuracy, sync efficiency, cloud exposure
+- **Paper publication** – AAAI 2027, ICML 2027, UIST 2027
 
 ## 🚀 Quick Start
 
